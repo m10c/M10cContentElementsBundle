@@ -1,0 +1,10 @@
+api_platform:
+    title: 'ContentElements Test API'
+    version: '1.0.0'
+    formats:
+        jsonld: ['application/ld+json']
+    defaults:
+        stateless: true
+    mapping:
+        paths:
+            - '%kernel.project_dir%/Fixtures/Entity'

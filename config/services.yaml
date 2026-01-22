@@ -1,0 +1,20 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    _instanceof:
+        M10c\ContentElements\Dimension\DimensionInterface:
+            tags: ['m10c.content_elements.dimension']
+        M10c\ContentElements\Filter\FilterInterface:
+            tags: ['m10c.content_elements.filter']
+
+    M10c\ContentElements\:
+        resource: '../src/'
+        exclude:
+            - '../src/M10cContentElementsBundle.php'
+            - '../src/Traits/'
+
+    # Interface aliases for type-hinting and decoration
+    M10c\ContentElements\Finder\VariantHydratorInterface:
+        alias: M10c\ContentElements\Finder\VariantHydrator

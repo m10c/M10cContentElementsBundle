@@ -1,0 +1,5 @@
+services:
+    # Stub translator for testing
+    M10c\ContentElements\Tests\Fixtures\Translation\StubTranslator: ~
+    M10c\ContentElements\Translation\TranslatorInterface:
+        alias: M10c\ContentElements\Tests\Fixtures\Translation\StubTranslator

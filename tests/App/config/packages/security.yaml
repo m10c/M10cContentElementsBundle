@@ -1,0 +1,14 @@
+security:
+    providers:
+        in_memory:
+            memory:
+                users:
+                    admin:
+                        password: 'admin'
+                        roles: ['ROLE_ADMIN']
+    firewalls:
+        main:
+            stateless: true
+            provider: in_memory
+    password_hashers:
+        Symfony\Component\Security\Core\User\InMemoryUser: plaintext

@@ -1,0 +1,8 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Make MetadataRegistry public for testing
+    M10c\ContentElements\Metadata\MetadataRegistry:
+        public: true
