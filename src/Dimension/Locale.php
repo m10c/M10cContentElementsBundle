@@ -53,34 +53,55 @@ class Locale implements DimensionInterface
         Assert::allString($resolvedValue);
 
         $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
+        $rootAlias = $queryBuilder->getRootAliases()[0];
 
-        // Build OR conditions for the locale fallback chain within the shared subquery
-        // e.g. ['en', '!de'] becomes: v.locale = 'en' OR v.locale != 'de'
-        // This ensures we find Identities that have at least one variant matching the fallback chain
-        $orX = $subQueryBuilder->expr()->orX();
+        $positiveLocales = [];
+        $negativeLocale = null;
 
         foreach ($resolvedValue as $locale) {
             if (str_starts_with($locale, '!')) {
-                // Negative locale: fallback to any variant NOT matching this locale
-                $value = substr($locale, 1);
-                $paramName = $queryNameGenerator->generateParameterName('locale_neg');
-                $orX->add(
-                    $subQueryBuilder->expr()->neq("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
-                );
+                $negativeLocale = substr($locale, 1);
             } else {
-                // Positive locale: prefer variant matching this locale
-                $value = $locale;
-                $paramName = $queryNameGenerator->generateParameterName('locale');
-                $orX->add(
-                    $subQueryBuilder->expr()->eq("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
-                );
+                $positiveLocales[] = $locale;
             }
-            $queryBuilder->setParameter($paramName, $value);
         }
 
-        if ($orX->count() > 0) {
-            $subQueryBuilder->andWhere($orX);
+        // Validate: negative can only be combined with its equivalent positive (e.g. en,!en)
+        if (null !== $negativeLocale && [] !== $positiveLocales) {
+            if (1 !== \count($positiveLocales) || $positiveLocales[0] !== $negativeLocale) {
+                throw new \InvalidArgumentException(
+                    'Negative locale can only be combined with its equivalent positive locale (e.g. "en,!en"). '
+                    .'Mixed combinations like "en,!de" are not supported.'
+                );
+            }
+            // en,!en means "all identities" - no filtering needed at identity level
+            return false;
+        }
+
+        // Positive only: include identities with a variant matching one of these locales
+        if ([] !== $positiveLocales) {
+            $paramName = $queryNameGenerator->generateParameterName('locale');
+            $subQueryBuilder->andWhere(
+                $subQueryBuilder->expr()->in("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
+            );
+            $queryBuilder->setParameter($paramName, $positiveLocales);
+
             return true;
+        }
+
+        // Negative only: exclude identities that have ANY variant with this locale
+        if (null !== $negativeLocale) {
+            $paramName = $queryNameGenerator->generateParameterName('locale_neg');
+            $negSubQb = $queryBuilder->getEntityManager()->createQueryBuilder();
+            $negSubQb->select('1')
+                ->from($identity->variantClass, 'v_neg')
+                ->where("v_neg.{$identity->identityProperty} = {$rootAlias}")
+                ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
+            $queryBuilder->setParameter($paramName, $negativeLocale);
+            $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
+
+            // Return false because we didn't add to the shared subquery
+            return false;
         }
 
         return false;
