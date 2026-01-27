@@ -52,11 +52,13 @@ final readonly class IdentityQueryRestrictor
      *
      * @param class-string                     $identityClass      The Identity entity class (e.g., Content::class)
      * @param QueryNameGeneratorInterface|null $queryNameGenerator Optional query name generator (creates new one if not provided)
+     * @param string|null                      $alias              Optional alias for the Identity entity (defaults to root alias)
      */
     public function apply(
         QueryBuilder $queryBuilder,
         string $identityClass,
         ?QueryNameGeneratorInterface $queryNameGenerator = null,
+        ?string $alias = null,
     ): void {
         $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
         if (!$identityAttribute) {
@@ -65,7 +67,7 @@ final readonly class IdentityQueryRestrictor
 
         $queryNameGenerator ??= new QueryNameGenerator();
         $context = $this->contextResolver->resolve();
-        $rootAlias = $queryBuilder->getRootAliases()[0];
+        $identityAlias = $alias ?? $queryBuilder->getRootAliases()[0];
         $variantAlias = self::VARIANT_ALIAS;
 
         // Create a single shared subquery that all dimensions and filters will contribute to.
@@ -73,7 +75,7 @@ final readonly class IdentityQueryRestrictor
         $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
         $subQb->select('1')
             ->from($identityAttribute->variantClass, $variantAlias)
-            ->where("{$variantAlias}.{$identityAttribute->identityProperty} = {$rootAlias}");
+            ->where("{$variantAlias}.{$identityAttribute->identityProperty} = {$identityAlias}");
 
         $hasConstraints = false;
 
@@ -92,7 +94,8 @@ final readonly class IdentityQueryRestrictor
                     $queryNameGenerator,
                     $identityAttribute,
                     $dimensionMetadata,
-                    $resolvedValue
+                    $resolvedValue,
+                    $identityAlias,
                 );
                 $hasConstraints = $hasConstraints || $applied;
             }
@@ -113,7 +116,8 @@ final readonly class IdentityQueryRestrictor
                     $queryNameGenerator,
                     $identityAttribute,
                     $filterMetadata,
-                    $resolvedValue
+                    $resolvedValue,
+                    $identityAlias,
                 );
                 $hasConstraints = $hasConstraints || $applied;
             }

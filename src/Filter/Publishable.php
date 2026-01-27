@@ -42,6 +42,7 @@ class Publishable implements FilterInterface
         Identity $identityAttribute,
         FilterMetadata $filterMetadata,
         mixed $resolvedValue,
+        string $identityAlias,
     ): bool {
         if (false === $resolvedValue) {
             // No filtering requested (e.g. admin operation)

@@ -38,6 +38,7 @@ class Version implements DimensionInterface
         Identity $identityAttribute,
         DimensionMetadata $dimensionMetadata,
         mixed $resolvedValue,
+        string $identityAlias,
     ): bool {
         throw new \Exception('TODO');
     }

@@ -34,6 +34,7 @@ interface DimensionInterface
      *
      * @param QueryBuilder $queryBuilder    Main query builder (for parameters and additional clauses)
      * @param QueryBuilder $subQueryBuilder Shared subquery builder (for WHERE constraints on the variant)
+     * @param string       $identityAlias   Alias of the Identity entity in the main query
      *
      * @return bool True if constraints were added to the subquery, false to skip
      */
@@ -44,6 +45,7 @@ interface DimensionInterface
         Identity $identityAttribute,
         DimensionMetadata $dimensionMetadata,
         mixed $resolvedValue,
+        string $identityAlias,
     ): bool;
 
     /**

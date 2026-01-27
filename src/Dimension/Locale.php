@@ -45,6 +45,7 @@ class Locale implements DimensionInterface
         Identity $identity,
         DimensionMetadata $dimensionMetadata,
         mixed $resolvedValue,
+        string $identityAlias,
     ): bool {
         if (null === $resolvedValue) {
             // Intentionally ignoring variants, e.g. for admin endpoints
@@ -53,7 +54,6 @@ class Locale implements DimensionInterface
         Assert::allString($resolvedValue);
 
         $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
-        $rootAlias = $queryBuilder->getRootAliases()[0];
 
         $positiveLocales = [];
         $negativeLocale = null;
@@ -95,7 +95,7 @@ class Locale implements DimensionInterface
             $negSubQb = $queryBuilder->getEntityManager()->createQueryBuilder();
             $negSubQb->select('1')
                 ->from($identity->variantClass, 'v_neg')
-                ->where("v_neg.{$identity->identityProperty} = {$rootAlias}")
+                ->where("v_neg.{$identity->identityProperty} = {$identityAlias}")
                 ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
             $queryBuilder->setParameter($paramName, $negativeLocale);
             $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
