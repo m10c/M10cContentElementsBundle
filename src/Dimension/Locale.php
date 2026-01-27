@@ -53,41 +53,37 @@ class Locale implements DimensionInterface
         Assert::allString($resolvedValue);
 
         $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
-        $rootAlias = $queryBuilder->getRootAliases()[0];
 
-        $positiveLocales = [];
-        $negativeLocales = [];
+        // Build OR conditions for the locale fallback chain within the shared subquery
+        // e.g. ['en', '!de'] becomes: v.locale = 'en' OR v.locale != 'de'
+        // This ensures we find Identities that have at least one variant matching the fallback chain
+        $orX = $subQueryBuilder->expr()->orX();
 
         foreach ($resolvedValue as $locale) {
             if (str_starts_with($locale, '!')) {
-                $negativeLocales[] = substr($locale, 1);
+                // Negative locale: fallback to any variant NOT matching this locale
+                $value = substr($locale, 1);
+                $paramName = $queryNameGenerator->generateParameterName('locale_neg');
+                $orX->add(
+                    $subQueryBuilder->expr()->neq("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
+                );
             } else {
-                $positiveLocales[] = $locale;
+                // Positive locale: prefer variant matching this locale
+                $value = $locale;
+                $paramName = $queryNameGenerator->generateParameterName('locale');
+                $orX->add(
+                    $subQueryBuilder->expr()->eq("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
+                );
             }
+            $queryBuilder->setParameter($paramName, $value);
         }
 
-        // Positive locales: add to the shared subquery (v.locale IN ('en', 'fr'))
-        if ([] !== $positiveLocales) {
-            $paramName = $queryNameGenerator->generateParameterName('locale');
-            $subQueryBuilder->andWhere(
-                $subQueryBuilder->expr()->in("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
-            );
-            $queryBuilder->setParameter($paramName, $positiveLocales);
+        if ($orX->count() > 0) {
+            $subQueryBuilder->andWhere($orX);
+            return true;
         }
 
-        // Negative locales: separate NOT EXISTS per locale (excludes Identity entirely if ANY variant has that locale)
-        foreach ($negativeLocales as $locale) {
-            $paramName = $queryNameGenerator->generateParameterName('locale_neg');
-            $negSubQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-            $negSubQb->select('1')
-                ->from($identity->variantClass, 'v_neg')
-                ->where("v_neg.{$identity->identityProperty} = {$rootAlias}")
-                ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
-            $queryBuilder->setParameter($paramName, $locale);
-            $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
-        }
-
-        return [] !== $positiveLocales;
+        return false;
     }
 
     #[\Override]
