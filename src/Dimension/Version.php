@@ -31,8 +31,14 @@ class Version implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identityAttribute, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identityAttribute,
+        DimensionMetadata $dimensionMetadata,
+        mixed $resolvedValue,
+    ): bool {
         throw new \Exception('TODO');
     }
 

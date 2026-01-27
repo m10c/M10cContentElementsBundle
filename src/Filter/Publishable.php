@@ -7,6 +7,7 @@ namespace M10c\ContentElements\Filter;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Attribute\Identity;
+use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\FilterMetadata;
 use Symfony\Component\Clock\DatePoint;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,25 +35,28 @@ class Publishable implements FilterInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identityAttribute, FilterMetadata $filterMetadata, mixed $resolvedValue): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identityAttribute,
+        FilterMetadata $filterMetadata,
+        mixed $resolvedValue,
+    ): bool {
         if (false === $resolvedValue) {
             // No filtering requested (e.g. admin operation)
-            return;
+            return false;
         }
 
-        $rootAlias = $queryBuilder->getRootAliases()[0];
+        $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
+        $paramName = $queryNameGenerator->generateParameterName('publishable_now');
 
-        // Use subquery to avoid polluting Doctrine's collection loading
-        // (JOINs on variants would filter the Identity.variants property)
-        $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-        $subQb->select('1')
-            ->from($identityAttribute->variantClass, 'v_pub')
-            ->where("v_pub.{$identityAttribute->identityProperty} = {$rootAlias}")
-            ->andWhere("v_pub.{$filterMetadata->property} IS NOT NULL")
-            ->andWhere("v_pub.{$filterMetadata->property} <= :now");
-        $queryBuilder->setParameter('now', new DatePoint());
-        $queryBuilder->andWhere($queryBuilder->expr()->exists($subQb->getDQL()));
+        $subQueryBuilder
+            ->andWhere("{$variantAlias}.{$filterMetadata->property} IS NOT NULL")
+            ->andWhere("{$variantAlias}.{$filterMetadata->property} <= :{$paramName}");
+        $queryBuilder->setParameter($paramName, new DatePoint());
+
+        return true;
     }
 
     #[\Override]

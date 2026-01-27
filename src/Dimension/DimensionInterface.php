@@ -26,9 +26,25 @@ interface DimensionInterface
     public function resolveValue(Request $request): mixed;
 
     /**
-     * Called once per Identity query.
+     * Add constraints to the shared identity subquery.
+     *
+     * All dimensions and filters contribute to the same subquery, ensuring
+     * criteria are evaluated against the SAME variant row. Use
+     * IdentityQueryRestrictor::VARIANT_ALIAS for the variant alias.
+     *
+     * @param QueryBuilder $queryBuilder    Main query builder (for parameters and additional clauses)
+     * @param QueryBuilder $subQueryBuilder Shared subquery builder (for WHERE constraints on the variant)
+     *
+     * @return bool True if constraints were added to the subquery, false to skip
      */
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identityAttribute, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void;
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identityAttribute,
+        DimensionMetadata $dimensionMetadata,
+        mixed $resolvedValue,
+    ): bool;
 
     /**
      * Called once per Variant hydration.

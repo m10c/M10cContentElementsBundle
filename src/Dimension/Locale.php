@@ -7,6 +7,7 @@ namespace M10c\ContentElements\Dimension;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Attribute\Identity;
+use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\DimensionMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Webmozart\Assert\Assert;
@@ -37,14 +38,22 @@ class Locale implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identity, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, ?string $identityAlias = null): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identity,
+        DimensionMetadata $dimensionMetadata,
+        mixed $resolvedValue,
+    ): bool {
         if (null === $resolvedValue) {
             // Intentionally ignoring variants, e.g. for admin endpoints
-            return;
+            return false;
         }
         Assert::allString($resolvedValue);
-        $identityAlias ??= $queryBuilder->getRootAliases()[0];
+
+        $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
+        $rootAlias = $queryBuilder->getRootAliases()[0];
 
         $positiveLocales = [];
         $negativeLocales = [];
@@ -57,34 +66,28 @@ class Locale implements DimensionInterface
             }
         }
 
-        $orX = $queryBuilder->expr()->orX();
-
-        // Use subqueries to avoid polluting Doctrine's collection loading
-        // (JOINs on variants would filter the Identity.variants property)
+        // Positive locales: add to the shared subquery (v.locale IN ('en', 'fr'))
         if ([] !== $positiveLocales) {
-            $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-            $subQb->select('1')
-                ->from($identity->variantClass, 'v_pos')
-                ->where("v_pos.{$identity->identityProperty} = {$identityAlias}")
-                ->andWhere($subQb->expr()->in("v_pos.{$dimensionMetadata->property}", ':locale_positive'));
-            $queryBuilder->setParameter('locale_positive', $positiveLocales);
-            $orX->add($queryBuilder->expr()->exists($subQb->getDQL()));
+            $paramName = $queryNameGenerator->generateParameterName('locale');
+            $subQueryBuilder->andWhere(
+                $subQueryBuilder->expr()->in("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
+            );
+            $queryBuilder->setParameter($paramName, $positiveLocales);
         }
 
-        foreach ($negativeLocales as $index => $locale) {
-            $parameterName = "locale_negative_{$index}";
-            $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-            $subQb->select('1')
-                ->from($identity->variantClass, "v_neg_{$index}")
-                ->where("v_neg_{$index}.{$identity->identityProperty} = {$identityAlias}")
-                ->andWhere("v_neg_{$index}.{$dimensionMetadata->property} = :{$parameterName}");
-            $queryBuilder->setParameter($parameterName, $locale);
-            $orX->add($queryBuilder->expr()->not($queryBuilder->expr()->exists($subQb->getDQL())));
+        // Negative locales: separate NOT EXISTS per locale (excludes Identity entirely if ANY variant has that locale)
+        foreach ($negativeLocales as $locale) {
+            $paramName = $queryNameGenerator->generateParameterName('locale_neg');
+            $negSubQb = $queryBuilder->getEntityManager()->createQueryBuilder();
+            $negSubQb->select('1')
+                ->from($identity->variantClass, 'v_neg')
+                ->where("v_neg.{$identity->identityProperty} = {$rootAlias}")
+                ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
+            $queryBuilder->setParameter($paramName, $locale);
+            $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
         }
 
-        if ($orX->count() > 0) {
-            $queryBuilder->andWhere($orX);
-        }
+        return [] !== $positiveLocales;
     }
 
     #[\Override]
