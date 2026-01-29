@@ -92,10 +92,12 @@ class Locale implements DimensionInterface
         // Negative only: exclude identities that have ANY variant with this locale
         if (null !== $negativeLocale) {
             $paramName = $queryNameGenerator->generateParameterName('locale_neg');
-            $negSubQb = $queryBuilder->getEntityManager()->createQueryBuilder();
+            $em = $queryBuilder->getEntityManager();
+            $identityIdField = $em->getClassMetadata($queryBuilder->getRootEntities()[0])->getSingleIdentifierFieldName();
+            $negSubQb = $em->createQueryBuilder();
             $negSubQb->select('1')
                 ->from($identity->variantClass, 'v_neg')
-                ->where("v_neg.{$identity->identityProperty} = {$identityAlias}")
+                ->where("IDENTITY(v_neg.{$identity->identityProperty}) = {$identityAlias}.{$identityIdField}")
                 ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
             $queryBuilder->setParameter($paramName, $negativeLocale);
             $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));

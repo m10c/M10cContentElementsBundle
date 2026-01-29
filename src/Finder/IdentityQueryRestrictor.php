@@ -70,12 +70,21 @@ final readonly class IdentityQueryRestrictor
         $identityAlias = $alias ?? $queryBuilder->getRootAliases()[0];
         $variantAlias = self::VARIANT_ALIAS;
 
+        // Resolve the identity's single ID field name so we can correlate using a
+        // path expression (e.g. "o.id") instead of a bare alias ("o"). This is
+        // necessary because API Platform's FilterEagerLoadingExtension rewrites
+        // aliases using a regex that only matches "alias." patterns — a bare alias
+        // at the end of an EXISTS subquery DQL string would not be rewritten,
+        // causing invalid DQL when the query is wrapped in a pagination subquery.
+        $em = $queryBuilder->getEntityManager();
+        $identityIdField = $em->getClassMetadata($identityClass)->getSingleIdentifierFieldName();
+
         // Create a single shared subquery that all dimensions and filters will contribute to.
         // This ensures all criteria are evaluated against the SAME variant row.
-        $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
+        $subQb = $em->createQueryBuilder();
         $subQb->select('1')
             ->from($identityAttribute->variantClass, $variantAlias)
-            ->where("{$variantAlias}.{$identityAttribute->identityProperty} = {$identityAlias}");
+            ->where("IDENTITY({$variantAlias}.{$identityAttribute->identityProperty}) = {$identityAlias}.{$identityIdField}");
 
         $hasConstraints = false;
 
