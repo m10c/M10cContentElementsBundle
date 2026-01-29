@@ -44,7 +44,7 @@ class Version implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
+    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, array $extraContext = []): void
     {
         $rootAlias = $queryBuilder->getRootAliases()[0];
         $queryBuilder->addOrderBy("{$rootAlias}.version", 'DESC');

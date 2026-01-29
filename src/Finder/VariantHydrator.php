@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace M10c\ContentElements\Finder;
 
+use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Util\ClassUtils;
 use M10c\ContentElements\Metadata\MetadataRegistry;
 use Webmozart\Assert\Assert;
@@ -26,23 +27,60 @@ class VariantHydrator implements VariantHydratorInterface
     }
 
     #[\Override]
-    public function hydrate(object $identity): void
+    public function hydrate(object $identity, array $extraDimensionContext = []): void
+    {
+        if (!$this->doHydrate($identity, $extraDimensionContext)) {
+            $id = property_exists($identity, 'id') ? $identity->id : '?';
+            throw new \Exception(sprintf('%s %s found no variant', $identity::class, $id));
+        }
+    }
+
+    #[\Override]
+    public function tryHydrate(object $identity, array $extraDimensionContext = []): bool
+    {
+        return $this->doHydrate($identity, $extraDimensionContext);
+    }
+
+    #[\Override]
+    public function hydrateAll(iterable $identities, array $extraDimensionContext = []): void
+    {
+        foreach ($identities as $identity) {
+            $this->hydrate($identity, $extraDimensionContext);
+        }
+    }
+
+    #[\Override]
+    public function tryHydrateAllPruned(array|Collection $identities, array $extraDimensionContext = []): array|Collection
+    {
+        if ($identities instanceof Collection) {
+            foreach ($identities as $key => $identity) {
+                if (!$this->tryHydrate($identity, $extraDimensionContext)) {
+                    $identities->remove($key);
+                }
+            }
+
+            return $identities;
+        }
+
+        return array_values(array_filter($identities, fn (object $identity) => $this->tryHydrate($identity, $extraDimensionContext)));
+    }
+
+    /**
+     * @return bool Whether a variant was found and set
+     */
+    private function doHydrate(object $identity, array $extraDimensionContext): bool
     {
         $identityClass = ClassUtils::getClass($identity);
         $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
         Assert::notNull($identityAttribute, sprintf("Class {$identityClass} is missing identity metadata"));
 
-        $variant = $this->variantFinder->findOne($identity);
+        $variant = $this->variantFinder->findOne($identity, $extraDimensionContext);
         if ($variant) {
             $identity->{$identityAttribute->variantProperty} = $variant;
-        }
-    }
 
-    #[\Override]
-    public function hydrateAll(iterable $identities): void
-    {
-        foreach ($identities as $identity) {
-            $this->hydrate($identity);
+            return true;
         }
+
+        return false;
     }
 }

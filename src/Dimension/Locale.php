@@ -108,8 +108,11 @@ class Locale implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
+    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, array $extraContext = []): void
     {
+        if (isset($extraContext['value'])) {
+            $resolvedValue = $extraContext['value'];
+        }
         Assert::allString($resolvedValue);
         $rootAlias = $queryBuilder->getRootAliases()[0];
         $orX = $queryBuilder->expr()->orX();

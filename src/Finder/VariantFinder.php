@@ -25,7 +25,10 @@ final class VariantFinder
     ) {
     }
 
-    public function findOne(object $identity): ?object
+    /**
+     * @param array<string, mixed> $extraDimensionContext Extra context keyed by dimension key, merged into resolved values
+     */
+    public function findOne(object $identity, array $extraDimensionContext = []): ?object
     {
         $identityClass = ClassUtils::getClass($identity);
         $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
@@ -49,7 +52,8 @@ final class VariantFinder
                 foreach ($this->dimensions as $dimension) {
                     if ($metadataItem->attribute::class === $dimension->getAttributeClass()) {
                         $resolvedValues = $context->dimensionResolvedValues[$dimension->getKey()];
-                        $dimension->applyToVariant($qb, $metadataItem, $resolvedValues);
+                        $extra = $extraDimensionContext[$dimension->getKey()] ?? [];
+                        $dimension->applyToVariant($qb, $metadataItem, $resolvedValues, $extra);
                     }
                 }
             }

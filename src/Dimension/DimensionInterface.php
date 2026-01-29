@@ -51,7 +51,9 @@ interface DimensionInterface
     /**
      * Called once per Variant hydration.
      *
+     * @param array<string, mixed> $extraContext Extra context passed for this specific hydration call
+     *
      * @todo Work out how to pass in QueryNameGeneratorInterface too
      */
-    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void;
+    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, array $extraContext = []): void;
 }
