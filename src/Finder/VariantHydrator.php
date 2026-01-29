@@ -50,19 +50,19 @@ class VariantHydrator implements VariantHydratorInterface
     }
 
     #[\Override]
-    public function tryHydrateAllPruned(array|Collection $identities, array $extraDimensionContext = []): array|Collection
+    public function tryHydrateAll(iterable $identities, array $extraDimensionContext = []): void
     {
-        if ($identities instanceof Collection) {
-            foreach ($identities as $key => $identity) {
-                if (!$this->tryHydrate($identity, $extraDimensionContext)) {
-                    $identities->remove($key);
-                }
-            }
-
-            return $identities;
+        foreach ($identities as $identity) {
+            $this->tryHydrate($identity, $extraDimensionContext);
         }
+    }
 
-        return array_values(array_filter($identities, fn (object $identity) => $this->tryHydrate($identity, $extraDimensionContext)));
+    #[\Override]
+    public function tryHydrateAllFiltered(array|Collection $identities, array $extraDimensionContext = []): array
+    {
+        $items = $identities instanceof Collection ? $identities->getValues() : $identities;
+
+        return array_values(array_filter($items, fn (object $identity) => $this->tryHydrate($identity, $extraDimensionContext)));
     }
 
     /**
