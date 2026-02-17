@@ -7,6 +7,7 @@ namespace M10c\ContentElements\Dimension;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Attribute\Identity;
+use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\DimensionMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Webmozart\Assert\Assert;
@@ -37,59 +38,83 @@ class Locale implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identity, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, ?string $identityAlias = null): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identity,
+        DimensionMetadata $dimensionMetadata,
+        mixed $resolvedValue,
+        string $identityAlias,
+    ): bool {
         if (null === $resolvedValue) {
             // Intentionally ignoring variants, e.g. for admin endpoints
-            return;
+            return false;
         }
         Assert::allString($resolvedValue);
-        $identityAlias ??= $queryBuilder->getRootAliases()[0];
+
+        $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
 
         $positiveLocales = [];
-        $negativeLocales = [];
+        $negativeLocale = null;
 
         foreach ($resolvedValue as $locale) {
             if (str_starts_with($locale, '!')) {
-                $negativeLocales[] = substr($locale, 1);
+                $negativeLocale = substr($locale, 1);
             } else {
                 $positiveLocales[] = $locale;
             }
         }
 
-        $orX = $queryBuilder->expr()->orX();
+        // Validate: negative can only be combined with its equivalent positive (e.g. en,!en)
+        if (null !== $negativeLocale && [] !== $positiveLocales) {
+            if (1 !== \count($positiveLocales) || $positiveLocales[0] !== $negativeLocale) {
+                throw new \InvalidArgumentException(
+                    'Negative locale can only be combined with its equivalent positive locale (e.g. "en,!en"). '
+                    .'Mixed combinations like "en,!de" are not supported.'
+                );
+            }
+            // en,!en means "all identities" - no filtering needed at identity level
+            return false;
+        }
 
-        // Use subqueries to avoid polluting Doctrine's collection loading
-        // (JOINs on variants would filter the Identity.variants property)
+        // Positive only: include identities with a variant matching one of these locales
         if ([] !== $positiveLocales) {
-            $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-            $subQb->select('1')
-                ->from($identity->variantClass, 'v_pos')
-                ->where("v_pos.{$identity->identityProperty} = {$identityAlias}")
-                ->andWhere($subQb->expr()->in("v_pos.{$dimensionMetadata->property}", ':locale_positive'));
-            $queryBuilder->setParameter('locale_positive', $positiveLocales);
-            $orX->add($queryBuilder->expr()->exists($subQb->getDQL()));
+            $paramName = $queryNameGenerator->generateParameterName('locale');
+            $subQueryBuilder->andWhere(
+                $subQueryBuilder->expr()->in("{$variantAlias}.{$dimensionMetadata->property}", ":{$paramName}")
+            );
+            $queryBuilder->setParameter($paramName, $positiveLocales);
+
+            return true;
         }
 
-        foreach ($negativeLocales as $index => $locale) {
-            $parameterName = "locale_negative_{$index}";
-            $subQb = $queryBuilder->getEntityManager()->createQueryBuilder();
-            $subQb->select('1')
-                ->from($identity->variantClass, "v_neg_{$index}")
-                ->where("v_neg_{$index}.{$identity->identityProperty} = {$identityAlias}")
-                ->andWhere("v_neg_{$index}.{$dimensionMetadata->property} = :{$parameterName}");
-            $queryBuilder->setParameter($parameterName, $locale);
-            $orX->add($queryBuilder->expr()->not($queryBuilder->expr()->exists($subQb->getDQL())));
+        // Negative only: exclude identities that have ANY variant with this locale
+        if (null !== $negativeLocale) {
+            $paramName = $queryNameGenerator->generateParameterName('locale_neg');
+            $em = $queryBuilder->getEntityManager();
+            $identityIdField = $em->getClassMetadata($queryBuilder->getRootEntities()[0])->getSingleIdentifierFieldName();
+            $negSubQb = $em->createQueryBuilder();
+            $negSubQb->select('1')
+                ->from($identity->variantClass, 'v_neg')
+                ->where("IDENTITY(v_neg.{$identity->identityProperty}) = {$identityAlias}.{$identityIdField}")
+                ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
+            $queryBuilder->setParameter($paramName, $negativeLocale);
+            $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
+
+            // Return false because we didn't add to the shared subquery
+            return false;
         }
 
-        if ($orX->count() > 0) {
-            $queryBuilder->andWhere($orX);
-        }
+        return false;
     }
 
     #[\Override]
-    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
+    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, array $extraContext = []): void
     {
+        if (isset($extraContext['value'])) {
+            $resolvedValue = $extraContext['value'];
+        }
         Assert::allString($resolvedValue);
         $rootAlias = $queryBuilder->getRootAliases()[0];
         $orX = $queryBuilder->expr()->orX();

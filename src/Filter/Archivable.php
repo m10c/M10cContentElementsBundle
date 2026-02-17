@@ -31,8 +31,15 @@ class Archivable implements FilterInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identityAttribute, FilterMetadata $filterMetadata, mixed $resolvedValue): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identityAttribute,
+        FilterMetadata $filterMetadata,
+        mixed $resolvedValue,
+        string $identityAlias,
+    ): bool {
         throw new \Exception('TODO');
     }
 

@@ -31,13 +31,20 @@ class Version implements DimensionInterface
     }
 
     #[\Override]
-    public function applyToIdentity(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, Identity $identityAttribute, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
-    {
+    public function applyToIdentityQuery(
+        QueryBuilder $queryBuilder,
+        QueryBuilder $subQueryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        Identity $identityAttribute,
+        DimensionMetadata $dimensionMetadata,
+        mixed $resolvedValue,
+        string $identityAlias,
+    ): bool {
         throw new \Exception('TODO');
     }
 
     #[\Override]
-    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue): void
+    public function applyToVariant(QueryBuilder $queryBuilder, DimensionMetadata $dimensionMetadata, mixed $resolvedValue, array $extraContext = []): void
     {
         $rootAlias = $queryBuilder->getRootAliases()[0];
         $queryBuilder->addOrderBy("{$rootAlias}.version", 'DESC');
