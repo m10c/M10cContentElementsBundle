@@ -6,13 +6,14 @@ namespace M10c\ContentElements\Dimension;
 
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
+use M10c\ContentElements\Api\Filter\VariantOrderSelectorInterface;
 use M10c\ContentElements\Attribute\Identity;
 use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\DimensionMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Webmozart\Assert\Assert;
 
-class Locale implements DimensionInterface
+class Locale implements DimensionInterface, VariantOrderSelectorInterface
 {
     public const KEY = 'locale';
 
@@ -142,5 +143,40 @@ class Locale implements DimensionInterface
             $queryBuilder->andWhere($orX)
                 ->addOrderBy($caseSql, 'ASC');
         }
+    }
+
+    #[\Override]
+    public function getVariantOrderJoinCondition(
+        QueryBuilder $queryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        string $joinAlias,
+        array $resolvedValue,
+    ): ?string {
+        $positiveLocales = [];
+        $negativeLocale = null;
+
+        foreach ($resolvedValue as $locale) {
+            if (str_starts_with($locale, '!')) {
+                $negativeLocale = substr($locale, 1);
+            } else {
+                $positiveLocales[] = $locale;
+            }
+        }
+
+        // "All" mode: positive+negative cancel out (e.g. ['en', '!en'])
+        if (null !== $negativeLocale && 1 === \count($positiveLocales) && $positiveLocales[0] === $negativeLocale) {
+            return null;
+        }
+
+        // Negative-only: no positive locale to order by
+        if (empty($positiveLocales)) {
+            return null;
+        }
+
+        // Use primary (first) locale from fallback chain for ordering
+        $paramName = $queryNameGenerator->generateParameterName('variant_order_locale');
+        $queryBuilder->setParameter($paramName, $positiveLocales[0]);
+
+        return "{$joinAlias}.locale = :{$paramName}";
     }
 }

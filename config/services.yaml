@@ -8,6 +8,8 @@ services:
             tags: ['m10c.content_elements.dimension']
         M10c\ContentElements\Filter\FilterInterface:
             tags: ['m10c.content_elements.filter']
+        M10c\ContentElements\Api\Filter\VariantOrderSelectorInterface:
+            tags: ['m10c.content_elements.variant_order_selector']
 
     M10c\ContentElements\:
         resource: '../src/'
