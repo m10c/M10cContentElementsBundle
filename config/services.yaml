@@ -17,10 +17,6 @@ services:
             - '../src/M10cContentElementsBundle.php'
             - '../src/Traits/'
 
-    M10c\ContentElements\Api\Filter\VariantOrderFilter:
-        arguments:
-            $variantSelectors: !tagged_iterator m10c.content_elements.variant_order_selector
-
     # Interface aliases for type-hinting and decoration
     M10c\ContentElements\Finder\VariantHydratorInterface:
         alias: M10c\ContentElements\Finder\VariantHydrator

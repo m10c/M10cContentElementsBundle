@@ -9,6 +9,7 @@ use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Context\ContextResolver;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 final class VariantOrderFilter implements FilterInterface
 {
@@ -18,6 +19,7 @@ final class VariantOrderFilter implements FilterInterface
      */
     public function __construct(
         private readonly ContextResolver $contextResolver,
+        #[AutowireIterator('m10c.content_elements.variant_order_selector')]
         private readonly iterable $variantSelectors,
         private ?array $properties = null,
     ) {

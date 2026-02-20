@@ -152,12 +152,25 @@ class Locale implements DimensionInterface, VariantOrderSelectorInterface
         string $joinAlias,
         array $resolvedValue,
     ): ?string {
-        $positiveLocales = array_values(
-            array_filter($resolvedValue, static fn (string $l) => !str_starts_with($l, '!')),
-        );
+        $positiveLocales = [];
+        $negativeLocale = null;
 
+        foreach ($resolvedValue as $locale) {
+            if (str_starts_with($locale, '!')) {
+                $negativeLocale = substr($locale, 1);
+            } else {
+                $positiveLocales[] = $locale;
+            }
+        }
+
+        // "All" mode: positive+negative cancel out (e.g. ['en', '!en'])
+        if (null !== $negativeLocale && 1 === \count($positiveLocales) && $positiveLocales[0] === $negativeLocale) {
+            return null;
+        }
+
+        // Negative-only: no positive locale to order by
         if (empty($positiveLocales)) {
-            return null; // "All" mode (e.g. ['en', '!en']) — skip variant sorting
+            return null;
         }
 
         // Use primary (first) locale from fallback chain for ordering
