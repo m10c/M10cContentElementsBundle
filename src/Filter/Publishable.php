@@ -29,9 +29,9 @@ class Publishable implements FilterInterface
     }
 
     #[\Override]
-    public function resolveValue(Request $request): mixed
+    public function resolveValue(Request $request): PublishableResolvedValue
     {
-        return true;
+        return PublishableResolvedValue::Published;
     }
 
     #[\Override]
@@ -44,18 +44,19 @@ class Publishable implements FilterInterface
         mixed $resolvedValue,
         string $identityAlias,
     ): bool {
-        if (false === $resolvedValue) {
-            // No filtering requested (e.g. admin operation)
+        if (PublishableResolvedValue::Any === $resolvedValue) {
             return false;
         }
 
         $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
-        $paramName = $queryNameGenerator->generateParameterName('publishable_now');
 
-        $subQueryBuilder
-            ->andWhere("{$variantAlias}.{$filterMetadata->property} IS NOT NULL")
-            ->andWhere("{$variantAlias}.{$filterMetadata->property} <= :{$paramName}");
-        $queryBuilder->setParameter($paramName, new DatePoint());
+        $subQueryBuilder->andWhere("{$variantAlias}.{$filterMetadata->property} IS NOT NULL");
+
+        if (PublishableResolvedValue::Published === $resolvedValue) {
+            $paramName = $queryNameGenerator->generateParameterName('publishable_now');
+            $subQueryBuilder->andWhere("{$variantAlias}.{$filterMetadata->property} <= :{$paramName}");
+            $queryBuilder->setParameter($paramName, new DatePoint());
+        }
 
         return true;
     }
@@ -63,15 +64,18 @@ class Publishable implements FilterInterface
     #[\Override]
     public function applyToVariant(QueryBuilder $queryBuilder, FilterMetadata $filterMetadata, mixed $resolvedValue): void
     {
-        if (false === $resolvedValue) {
-            // No filtering requested (e.g. admin operation)
+        if (PublishableResolvedValue::Any === $resolvedValue) {
             return;
         }
 
         $rootAlias = $queryBuilder->getRootAliases()[0];
-        $queryBuilder
-            ->andWhere("{$rootAlias}.{$filterMetadata->property} IS NOT NULL")
-            ->andWhere("{$rootAlias}.{$filterMetadata->property} <= :now")
-            ->setParameter('now', new DatePoint());
+
+        $queryBuilder->andWhere("{$rootAlias}.{$filterMetadata->property} IS NOT NULL");
+
+        if (PublishableResolvedValue::Published === $resolvedValue) {
+            $queryBuilder
+                ->andWhere("{$rootAlias}.{$filterMetadata->property} <= :now")
+                ->setParameter('now', new DatePoint());
+        }
     }
 }
