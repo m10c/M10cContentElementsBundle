@@ -6,13 +6,14 @@ namespace M10c\ContentElements\Dimension;
 
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
+use M10c\ContentElements\Api\Filter\VariantOrderSelectorInterface;
 use M10c\ContentElements\Attribute\Identity;
 use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\DimensionMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Webmozart\Assert\Assert;
 
-class Locale implements DimensionInterface
+class Locale implements DimensionInterface, VariantOrderSelectorInterface
 {
     public const KEY = 'locale';
 
@@ -142,5 +143,27 @@ class Locale implements DimensionInterface
             $queryBuilder->andWhere($orX)
                 ->addOrderBy($caseSql, 'ASC');
         }
+    }
+
+    #[\Override]
+    public function getVariantOrderJoinCondition(
+        QueryBuilder $queryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        string $joinAlias,
+        array $resolvedValue,
+    ): ?string {
+        $positiveLocales = array_values(
+            array_filter($resolvedValue, static fn (string $l) => !str_starts_with($l, '!')),
+        );
+
+        if (empty($positiveLocales)) {
+            return null; // "All" mode (e.g. ['en', '!en']) — skip variant sorting
+        }
+
+        // Use primary (first) locale from fallback chain for ordering
+        $paramName = $queryNameGenerator->generateParameterName('variant_order_locale');
+        $queryBuilder->setParameter($paramName, $positiveLocales[0]);
+
+        return "{$joinAlias}.locale = :{$paramName}";
     }
 }
