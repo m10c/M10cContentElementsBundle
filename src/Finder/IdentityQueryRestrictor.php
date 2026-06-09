@@ -60,9 +60,31 @@ final readonly class IdentityQueryRestrictor
         ?QueryNameGeneratorInterface $queryNameGenerator = null,
         ?string $alias = null,
     ): void {
+        $subQb = $this->buildVariantSubQuery($queryBuilder, $identityClass, $queryNameGenerator, $alias);
+
+        // Only add the EXISTS clause if at least one dimension/filter added constraints
+        if (null !== $subQb) {
+            $queryBuilder->andWhere($queryBuilder->expr()->exists($subQb->getDQL()));
+        }
+    }
+
+    /**
+     * Builds the shared, identity-correlated variant subquery with all applicable
+     * dimensions and filters applied.
+     *
+     * @param class-string                     $identityClass      The Identity entity class (e.g., Content::class)
+     * @param QueryNameGeneratorInterface|null $queryNameGenerator Optional query name generator (creates new one if not provided)
+     * @param string|null                      $alias              Optional alias for the Identity entity (defaults to root alias)
+     */
+    public function buildVariantSubQuery(
+        QueryBuilder $queryBuilder,
+        string $identityClass,
+        ?QueryNameGeneratorInterface $queryNameGenerator = null,
+        ?string $alias = null,
+    ): ?QueryBuilder {
         $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
         if (!$identityAttribute) {
-            return;
+            return null;
         }
 
         $queryNameGenerator ??= new QueryNameGenerator();
@@ -132,9 +154,6 @@ final readonly class IdentityQueryRestrictor
             }
         }
 
-        // Only add the EXISTS clause if at least one dimension/filter added constraints
-        if ($hasConstraints) {
-            $queryBuilder->andWhere($queryBuilder->expr()->exists($subQb->getDQL()));
-        }
+        return $hasConstraints ? $subQb : null;
     }
 }
