@@ -8,7 +8,6 @@ use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Api\Filter\VariantOrderSelectorInterface;
 use M10c\ContentElements\Attribute\Identity;
-use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\DimensionMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Webmozart\Assert\Assert;
@@ -47,14 +46,13 @@ class Locale implements DimensionInterface, VariantOrderSelectorInterface
         DimensionMetadata $dimensionMetadata,
         mixed $resolvedValue,
         string $identityAlias,
+        string $variantAlias,
     ): bool {
         if (null === $resolvedValue) {
             // Intentionally ignoring variants, e.g. for admin endpoints
             return false;
         }
         Assert::allString($resolvedValue);
-
-        $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
 
         $positiveLocales = [];
         $negativeLocale = null;
@@ -93,13 +91,14 @@ class Locale implements DimensionInterface, VariantOrderSelectorInterface
         // Negative only: exclude identities that have ANY variant with this locale
         if (null !== $negativeLocale) {
             $paramName = $queryNameGenerator->generateParameterName('locale_neg');
+            $negAlias = $queryNameGenerator->generateJoinAlias('v_neg');
             $em = $queryBuilder->getEntityManager();
             $identityIdField = $em->getClassMetadata($queryBuilder->getRootEntities()[0])->getSingleIdentifierFieldName();
             $negSubQb = $em->createQueryBuilder();
             $negSubQb->select('1')
-                ->from($identity->variantClass, 'v_neg')
-                ->where("IDENTITY(v_neg.{$identity->identityProperty}) = {$identityAlias}.{$identityIdField}")
-                ->andWhere("v_neg.{$dimensionMetadata->property} = :{$paramName}");
+                ->from($identity->variantClass, $negAlias)
+                ->where("IDENTITY({$negAlias}.{$identity->identityProperty}) = {$identityAlias}.{$identityIdField}")
+                ->andWhere("{$negAlias}.{$dimensionMetadata->property} = :{$paramName}");
             $queryBuilder->setParameter($paramName, $negativeLocale);
             $queryBuilder->andWhere($queryBuilder->expr()->not($queryBuilder->expr()->exists($negSubQb->getDQL())));
 

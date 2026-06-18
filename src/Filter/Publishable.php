@@ -7,7 +7,6 @@ namespace M10c\ContentElements\Filter;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use Doctrine\ORM\QueryBuilder;
 use M10c\ContentElements\Attribute\Identity;
-use M10c\ContentElements\Finder\IdentityQueryRestrictor;
 use M10c\ContentElements\Metadata\FilterMetadata;
 use Symfony\Component\Clock\DatePoint;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,12 +42,11 @@ class Publishable implements FilterInterface
         FilterMetadata $filterMetadata,
         mixed $resolvedValue,
         string $identityAlias,
+        string $variantAlias,
     ): bool {
         if (PublishableResolvedValue::Any === $resolvedValue) {
             return false;
         }
-
-        $variantAlias = IdentityQueryRestrictor::VARIANT_ALIAS;
 
         $subQueryBuilder->andWhere("{$variantAlias}.{$filterMetadata->property} IS NOT NULL");
 

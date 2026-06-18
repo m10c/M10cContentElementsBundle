@@ -39,6 +39,7 @@ class Archivable implements FilterInterface
         FilterMetadata $filterMetadata,
         mixed $resolvedValue,
         string $identityAlias,
+        string $variantAlias,
     ): bool {
         throw new \Exception('TODO');
     }

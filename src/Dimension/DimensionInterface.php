@@ -29,12 +29,12 @@ interface DimensionInterface
      * Add constraints to the shared identity subquery.
      *
      * All dimensions and filters contribute to the same subquery, ensuring
-     * criteria are evaluated against the SAME variant row. Use
-     * IdentityQueryRestrictor::VARIANT_ALIAS for the variant alias.
+     * criteria are evaluated against the SAME variant row.
      *
      * @param QueryBuilder $queryBuilder    Main query builder (for parameters and additional clauses)
      * @param QueryBuilder $subQueryBuilder Shared subquery builder (for WHERE constraints on the variant)
      * @param string       $identityAlias   Alias of the Identity entity in the main query
+     * @param string       $variantAlias    Alias of the variant in the shared subquery
      *
      * @return bool True if constraints were added to the subquery, false to skip
      */
@@ -46,6 +46,7 @@ interface DimensionInterface
         DimensionMetadata $dimensionMetadata,
         mixed $resolvedValue,
         string $identityAlias,
+        string $variantAlias,
     ): bool;
 
     /**

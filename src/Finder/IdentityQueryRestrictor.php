@@ -25,7 +25,11 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 final readonly class IdentityQueryRestrictor
 {
     /**
-     * Alias used for the variant table in the shared identity subquery.
+     * Seed used to generate the variant table alias for the shared identity subquery.
+     *
+     * The actual alias is produced per-subquery via the QueryNameGenerator (e.g. "v_a1"),
+     * so multiple subqueries built in the same statement get distinct, collision-free
+     * aliases, passed to dimensions and filters.
      */
     public const VARIANT_ALIAS = 'v';
 
@@ -90,7 +94,10 @@ final readonly class IdentityQueryRestrictor
         $queryNameGenerator ??= new QueryNameGenerator();
         $context = $this->contextResolver->resolve();
         $identityAlias = $alias ?? $queryBuilder->getRootAliases()[0];
-        $variantAlias = self::VARIANT_ALIAS;
+
+        // Generate a unique variant alias per subquery so multiple subqueries built
+        // in the same statement do not collide.
+        $variantAlias = $queryNameGenerator->generateJoinAlias(self::VARIANT_ALIAS);
 
         // Resolve the identity's single ID field name so we can correlate using a
         // path expression (e.g. "o.id") instead of a bare alias ("o"). This is
@@ -127,6 +134,7 @@ final readonly class IdentityQueryRestrictor
                     $dimensionMetadata,
                     $resolvedValue,
                     $identityAlias,
+                    $variantAlias,
                 );
                 $hasConstraints = $hasConstraints || $applied;
             }
@@ -149,6 +157,7 @@ final readonly class IdentityQueryRestrictor
                     $filterMetadata,
                     $resolvedValue,
                     $identityAlias,
+                    $variantAlias,
                 );
                 $hasConstraints = $hasConstraints || $applied;
             }
