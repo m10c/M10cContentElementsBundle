@@ -1,2 +1,3 @@
 /tests/App/config/reference.php
 /vendor/
+/.phpunit.cache/

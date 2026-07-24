@@ -6,3 +6,15 @@ services:
     # Make MetadataRegistry public for testing
     M10c\ContentElements\Metadata\MetadataRegistry:
         public: true
+
+    M10c\ContentElements\Tests\Fixtures\BlockType\:
+        resource: '../../Fixtures/BlockType/'
+
+    M10c\ContentElements\Tests\Fixtures\Sitemap\:
+        resource: '../../Fixtures/Sitemap/'
+
+    M10c\ContentElements\Tests\Fixtures\Translation\:
+        resource: '../../Fixtures/Translation/'
+
+    M10c\ContentElements\Translation\TranslatorInterface:
+        alias: M10c\ContentElements\Tests\Fixtures\Translation\StubTranslator

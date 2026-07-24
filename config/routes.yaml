@@ -1,0 +1,4 @@
+m10c_content_elements_sitemap:
+    path: /sitemap.xml
+    methods: [GET]
+    controller: M10c\ContentElements\Sitemap\SitemapController

@@ -8,6 +8,8 @@ use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use M10c\ContentElements\Tests\App\TestKernel;
+use M10c\ContentElements\Tests\Fixtures\Entity\Page;
+use M10c\ContentElements\Tests\Fixtures\Entity\PageVariant;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 abstract class ContentElementsTestCase extends ApiTestCase
@@ -54,6 +56,8 @@ abstract class ContentElementsTestCase extends ApiTestCase
 
         $connection->executeStatement('DELETE FROM test_article_variant');
         $connection->executeStatement('DELETE FROM test_article');
+        $connection->executeStatement('DELETE FROM test_page_variant');
+        $connection->executeStatement('DELETE FROM test_page');
     }
 
     /**
@@ -83,5 +87,31 @@ abstract class ContentElementsTestCase extends ApiTestCase
         $response->getHeaders(throw: false);
 
         return $response;
+    }
+
+    /**
+     * @param list<array{type: string, data: array<string, mixed>}> $blocks
+     */
+    protected function seedPage(string $slug, string $seoTitle, string $seoDescription, array $blocks): PageVariant
+    {
+        $page = new Page();
+        $page->slug = $slug;
+
+        $variant = new PageVariant();
+        $variant->identity = $page;
+        $variant->locale = 'en';
+        $variant->seoTitle = $seoTitle;
+        $variant->seoDescription = $seoDescription;
+        $variant->blocks = $blocks;
+
+        $page->variants->add($variant);
+
+        $em = $this->getEm();
+        $em->persist($page);
+        $em->persist($variant);
+        $em->flush();
+        $em->clear();
+
+        return $variant;
     }
 }

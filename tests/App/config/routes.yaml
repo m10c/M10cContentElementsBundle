@@ -1,3 +1,6 @@
 api_platform:
     resource: .
     type: api_platform
+
+m10c_content_elements:
+    resource: '@M10cContentElementsBundle/config/routes.yaml'

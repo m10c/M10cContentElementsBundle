@@ -18,7 +18,7 @@ A common pattern in CMSs is to have multiple database rows for a single "thing",
 
 We represent this by referring to the base entity as the **Identity** (e.g. `src/Entity/Author`), which can have **Variants** (e.g. `src/Entity/AuthorVariant`), which contains the fields that may be different based on **Dimensions**.  Built in Dimensions:
 
-- **Locale** - For making content available in multiple langauages.
+- **Locale** - For making content available in multiple languages.
 - **Stage** - For having staging/production versions of content in the same database (making them promoteable).
 - **Version** - For tracking a version history.
 
@@ -28,6 +28,10 @@ While Dimensions can lead to multiple rows for a single entity, **Filters** simp
 
 - **Archivable** - Allow content to be "soft-deleted" so it doesn't show up in lists by default, but can still be easily restored.
 - **Publishable** - Let content be in a draft state, or scheduled for published, before it appears publicly to users.
+
+### Blocks
+
+Webpage or app screen content is often an ordered list of typed **Blocks** (e.g. a hero, a rich-text section, a feature grid) each with its own fields. The bundle can store blocks as JSON on an entity, with each block type declaring its own validation rules and schema for rendering an admin form.
 
 ## Usage
 
@@ -154,3 +158,93 @@ This structure allows:
 - **Identity-level versioning**: When `thumbnail` or `tags` change, create a new `ContentVersion`
 - **Locale-level versioning**: When `title` or `body` change, create a new `ContentLocalised`
 - **Independent histories**: English content can have 5 versions while French has 3
+
+### Building a CMS: Pages and Blocks
+
+The primitives below are all opt-in — an entity mixes in only the traits it needs. A typical page is an Identity with a per-locale Variant that carries a slug, SEO metadata and an ordered list of typed blocks:
+
+```php
+// src/Entity/Page.php
+#[ApiResource(
+    operations: [
+        new GetCollection(provider: IdentityWithVariantProvider::class),
+        new Get(provider: IdentityWithVariantProvider::class),
+        new Get(
+            uriTemplate: '/pages/by-slug/{slug}',
+            provider: ByPropertyProvider::class,
+        ),
+    ],
+)]
+#[Identity(variantClass: PageVariant::class)]
+#[ORM\Entity]
+#[ORM\UniqueConstraint(columns: ['slug'])]
+class Page
+{
+    use HasSlugTrait;
+
+    #[ORM\Id, ORM\Column] public string $id;
+    #[ORM\OneToMany(targetEntity: PageVariant::class, mappedBy: 'identity', cascade: ['persist'])]
+    public Collection $variants;
+    public ?PageVariant $variant = null;
+}
+
+// src/Entity/PageVariant.php
+#[ApiResource(operations: [new Patch()])]
+#[ORM\Entity, ORM\HasLifecycleCallbacks]
+class PageVariant
+{
+    use LocaleDimensionTrait;
+    use HasSeoMetaTrait;
+    use HasBlocksTrait;
+    use HasUpdatedAtTrait;
+
+    #[ORM\Id, ORM\Column] public string $id;
+    #[ORM\ManyToOne(inversedBy: 'variants')]
+    public Page $identity;
+}
+```
+
+Each block type is a service defining its data shape, which is validated when updates are written:
+
+```php
+// src/Cms/BlockType/HeroBlockType.php
+final class HeroBlockType implements BlockTypeInterface
+{
+    public function getKey(): string
+    {
+        return 'hero';
+    }
+
+    // Enforced on every write; a violation reports as e.g. blocks[0].data[headline].
+    public function getDataConstraints(): Constraint
+    {
+        return new Assert\Collection([
+            'fields' => [
+                'headline' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
+                'subhead' => [new Assert\NotBlank(), new Assert\Length(max: 500)],
+            ],
+            'allowExtraFields' => false,
+            'allowMissingFields' => false,
+        ]);
+    }
+
+    public function getDefaultData(): array
+    {
+        return ['headline' => '', 'subhead' => ''];
+    }
+
+    public function getSchema(): array
+    {
+        return [
+            'label' => 'Hero',
+            'fields' => [
+                'headline' => ['kind' => 'text', 'label' => 'Headline', 'maxLength' => 255],
+                'subhead'  => ['kind' => 'textarea', 'label' => 'Subhead', 'maxLength' => 500],
+            ],
+        ];
+    }
+}
+```
+
+
+A CMS frontend can call `GET /block-types` to list all registered blocks and their schemas, so forms can be rendered completely dynamically.

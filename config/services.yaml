@@ -10,6 +10,8 @@ services:
             tags: ['m10c.content_elements.filter']
         M10c\ContentElements\Api\Filter\VariantOrderSelectorInterface:
             tags: ['m10c.content_elements.variant_order_selector']
+        M10c\ContentElements\Block\BlockTypeInterface:
+            tags: ['m10c.content_elements.block_type']
 
     M10c\ContentElements\:
         resource: '../src/'
