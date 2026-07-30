@@ -39,9 +39,7 @@ class IdentityWithVariantProvider implements ProviderInterface
                 return $provided;
             }
 
-            foreach ($provided as $item) {
-                $this->variantHydrator->hydrate($item);
-            }
+            $this->variantHydrator->hydrateAll($provided);
         } else {
             $provided = $this->itemProvider->provide($operation, $uriVariables, $context);
 
