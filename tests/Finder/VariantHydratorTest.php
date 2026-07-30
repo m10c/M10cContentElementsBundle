@@ -12,9 +12,11 @@ use M10c\ContentElements\Tests\Functional\ContentElementsTestCase;
 
 final class VariantHydratorTest extends ContentElementsTestCase
 {
+    /**
+     * Hydrating a list costs one query per identity class, however many identities it holds.
+     */
     public function testHydrateAll(): void
     {
-        // Hydrating a list costs one query per identity class, however many identities it holds
         $this->pushRequest();
 
         $page = $this->seedPage('page-one', 'Page One', 'A page', [])->identity;
@@ -44,9 +46,11 @@ final class VariantHydratorTest extends ContentElementsTestCase
         $this->assertSame('Page One', $page->variant?->seoTitle);
     }
 
+    /**
+     * An identity with no published variant is skipped by the try methods and fatal to hydrateAll.
+     */
     public function testMissingVariant(): void
     {
-        // An identity with no published variant is skipped by the try methods and fatal to hydrateAll
         $this->pushRequest();
 
         $published = $this->createArticle('article-published', 'en', '2025-01-01');

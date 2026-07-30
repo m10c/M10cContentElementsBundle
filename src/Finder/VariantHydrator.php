@@ -15,9 +15,6 @@ use Webmozart\Assert\Assert;
  * This is useful for providers that query Identity entities directly (e.g. via DQL)
  * rather than using IdentityWithVariantProvider.
  *
- * Several identities are resolved in one query per identity class, so overriding hydrate()
- * alone does not change how the collection methods behave.
- *
  * This base implementation only sets the variant property. For additional behavior
  * like object mapping (BC layer), decorate this service in your project.
  */

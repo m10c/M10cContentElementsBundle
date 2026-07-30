@@ -37,7 +37,7 @@ interface VariantHydratorInterface
     public function tryHydrate(object $identity, array $extraDimensionContext = []): bool;
 
     /**
-     * Hydrate multiple identities with their variants, in one query per identity class.
+     * Hydrate multiple identities with their variants.
      *
      * @param iterable<object> $identities
      * @param array<string, mixed> $extraDimensionContext Extra context keyed by dimension key
@@ -47,7 +47,7 @@ interface VariantHydratorInterface
     public function hydrateAll(iterable $identities, array $extraDimensionContext = []): void;
 
     /**
-     * Try to hydrate multiple identities in one query per identity class, silently skipping failures.
+     * Try to hydrate multiple identities, silently skipping failures.
      *
      * @param iterable<object> $identities
      * @param array<string, mixed> $extraDimensionContext Extra context keyed by dimension key
@@ -55,8 +55,7 @@ interface VariantHydratorInterface
     public function tryHydrateAll(iterable $identities, array $extraDimensionContext = []): void;
 
     /**
-     * Try to hydrate all identities in one query per identity class, returning a new array
-     * without those that had no variant.
+     * Try to hydrate all identities, returning a new array without those that had no variant.
      *
      * @template T of object
      *

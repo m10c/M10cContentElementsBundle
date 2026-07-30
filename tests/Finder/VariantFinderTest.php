@@ -15,10 +15,12 @@ final class VariantFinderTest extends ContentElementsTestCase
 {
     use ClockSensitiveTrait;
 
+    /**
+     * One query must still resolve each identity separately: its own locale winner,
+     * and nothing at all when no variant of it is published.
+     */
     public function testFindOneForEach(): void
     {
-        // One query must still resolve each identity separately: its own locale winner,
-        // and nothing at all when no variant of it is published.
         static::mockTime('2026-01-01 00:00:00');
         $this->pushRequest();
 
