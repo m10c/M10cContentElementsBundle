@@ -42,6 +42,21 @@ abstract class ContentElementsTestCase extends ApiTestCase
         static::getContainer()->get('request_stack')->push(new Request());
     }
 
+    protected function resetQueryLog(): void
+    {
+        static::getContainer()->get('doctrine.debug_data_holder')->reset();
+    }
+
+    /**
+     * How many statements naming the given table ran since the last resetQueryLog().
+     */
+    protected function countQueriesFor(string $table): int
+    {
+        $queries = static::getContainer()->get('doctrine.debug_data_holder')->getData()['default'] ?? [];
+
+        return \count(array_filter($queries, static fn (array $query) => str_contains($query['sql'], $table)));
+    }
+
     private function createSchemaIfNeeded(): void
     {
         if (self::$schemaCreated) {
