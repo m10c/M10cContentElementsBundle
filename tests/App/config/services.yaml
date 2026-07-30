@@ -3,6 +3,13 @@ services:
         autowire: true
         autoconfigure: true
 
+    # Make the finder and hydrator public for testing
+    M10c\ContentElements\Finder\VariantFinder:
+        public: true
+
+    M10c\ContentElements\Finder\VariantHydrator:
+        public: true
+
     # Make MetadataRegistry public for testing
     M10c\ContentElements\Metadata\MetadataRegistry:
         public: true
