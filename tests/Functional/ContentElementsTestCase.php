@@ -10,6 +10,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use M10c\ContentElements\Tests\App\TestKernel;
 use M10c\ContentElements\Tests\Fixtures\Entity\Page;
 use M10c\ContentElements\Tests\Fixtures\Entity\PageVariant;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 abstract class ContentElementsTestCase extends ApiTestCase
@@ -31,6 +32,29 @@ abstract class ContentElementsTestCase extends ApiTestCase
     protected function getEm(): EntityManagerInterface
     {
         return static::getContainer()->get('doctrine.orm.entity_manager');
+    }
+
+    /**
+     * Dimensions and filters resolve off the current request, so a service called directly needs one.
+     */
+    protected function pushRequest(): void
+    {
+        static::getContainer()->get('request_stack')->push(new Request());
+    }
+
+    protected function resetQueryLog(): void
+    {
+        static::getContainer()->get('doctrine.debug_data_holder')->reset();
+    }
+
+    /**
+     * How many statements naming the given table ran since the last resetQueryLog().
+     */
+    protected function countQueriesFor(string $table): int
+    {
+        $queries = static::getContainer()->get('doctrine.debug_data_holder')->getData()['default'] ?? [];
+
+        return \count(array_filter($queries, static fn (array $query) => str_contains($query['sql'], $table)));
     }
 
     private function createSchemaIfNeeded(): void

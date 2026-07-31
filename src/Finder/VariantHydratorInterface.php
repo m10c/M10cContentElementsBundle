@@ -41,6 +41,8 @@ interface VariantHydratorInterface
      *
      * @param iterable<object> $identities
      * @param array<string, mixed> $extraDimensionContext Extra context keyed by dimension key
+     *
+     * @throws \Exception If any identity has no variant
      */
     public function hydrateAll(iterable $identities, array $extraDimensionContext = []): void;
 

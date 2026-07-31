@@ -29,58 +29,94 @@ class VariantHydrator implements VariantHydratorInterface
     #[\Override]
     public function hydrate(object $identity, array $extraDimensionContext = []): void
     {
-        if (!$this->doHydrate($identity, $extraDimensionContext)) {
-            $id = property_exists($identity, 'id') ? $identity->id : '?';
-            throw new \Exception(sprintf('%s %s found no variant', $identity::class, $id));
+        if (!$this->tryHydrate($identity, $extraDimensionContext)) {
+            throw $this->noVariantException($identity);
         }
     }
 
     #[\Override]
     public function tryHydrate(object $identity, array $extraDimensionContext = []): bool
     {
-        return $this->doHydrate($identity, $extraDimensionContext);
+        return [] !== $this->doHydrateAll([$identity], $extraDimensionContext);
     }
 
     #[\Override]
     public function hydrateAll(iterable $identities, array $extraDimensionContext = []): void
     {
-        foreach ($identities as $identity) {
-            $this->hydrate($identity, $extraDimensionContext);
+        $identities = $this->toList($identities);
+        $hydrated = $this->doHydrateAll($identities, $extraDimensionContext);
+
+        foreach ($identities as $key => $identity) {
+            if (!isset($hydrated[$key])) {
+                throw $this->noVariantException($identity);
+            }
         }
     }
 
     #[\Override]
     public function tryHydrateAll(iterable $identities, array $extraDimensionContext = []): void
     {
-        foreach ($identities as $identity) {
-            $this->tryHydrate($identity, $extraDimensionContext);
-        }
+        $this->doHydrateAll($this->toList($identities), $extraDimensionContext);
     }
 
     #[\Override]
     public function tryHydrateAllFiltered(array|Collection $identities, array $extraDimensionContext = []): array
     {
-        $items = $identities instanceof Collection ? $identities->getValues() : $identities;
-
-        return array_values(array_filter($items, fn (object $identity) => $this->tryHydrate($identity, $extraDimensionContext)));
+        return array_values($this->doHydrateAll($this->toList($identities), $extraDimensionContext));
     }
 
     /**
-     * @return bool Whether a variant was found and set
+     * Sets the variant on every identity that has one, in one query per identity class.
+     *
+     * @template TKey of array-key
+     * @template T of object
+     *
+     * @param array<TKey, T>       $identities
+     * @param array<string, mixed> $extraDimensionContext
+     *
+     * @return array<TKey, T> The identities that got a variant
      */
-    private function doHydrate(object $identity, array $extraDimensionContext): bool
+    private function doHydrateAll(array $identities, array $extraDimensionContext): array
     {
-        $identityClass = ClassUtils::getClass($identity);
-        $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
-        Assert::notNull($identityAttribute, sprintf("Class {$identityClass} is missing identity metadata"));
-
-        $variant = $this->variantFinder->findOne($identity, $extraDimensionContext);
-        if ($variant) {
-            $identity->{$identityAttribute->variantProperty} = $variant;
-
-            return true;
+        $identitiesByClass = [];
+        foreach ($identities as $key => $identity) {
+            $identitiesByClass[ClassUtils::getClass($identity)][$key] = $identity;
         }
 
-        return false;
+        $hydrated = [];
+        foreach ($identitiesByClass as $identityClass => $group) {
+            $identityAttribute = $this->metadataRegistry->getIdentityMetadata($identityClass);
+            Assert::notNull($identityAttribute, "Class {$identityClass} is missing identity metadata");
+
+            foreach ($this->variantFinder->findOneForEach($group, $extraDimensionContext) as $key => $variant) {
+                $group[$key]->{$identityAttribute->variantProperty} = $variant;
+                $hydrated[$key] = $group[$key];
+            }
+        }
+
+        // Grouping and the query both reorder, so put the caller's order back
+        ksort($hydrated);
+
+        return $hydrated;
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param iterable<T> $identities
+     *
+     * @return list<T>
+     */
+    private function toList(iterable $identities): array
+    {
+        return \is_array($identities) ? array_values($identities) : iterator_to_array($identities, false);
+    }
+
+    private function noVariantException(object $identity): \Exception
+    {
+        $id = property_exists($identity, 'id') ? $identity->id : '?';
+        Assert::scalar($id);
+
+        return new \Exception(sprintf('%s %s found no variant', $identity::class, $id));
     }
 }
