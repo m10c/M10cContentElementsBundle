@@ -17,13 +17,13 @@ final class RichTextBlockType implements BlockTypeInterface
 
     public function getDataConstraints(): Constraint
     {
-        return new Assert\Collection([
-            'fields' => [
+        return new Assert\Collection(
+            fields: [
                 'body' => [new Assert\NotBlank(), new Assert\Type('string')],
             ],
-            'allowExtraFields' => false,
-            'allowMissingFields' => false,
-        ]);
+            allowExtraFields: false,
+            allowMissingFields: false,
+        );
     }
 
     public function getDefaultData(): array

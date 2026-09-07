@@ -17,14 +17,14 @@ final class HeroBlockType implements BlockTypeInterface
 
     public function getDataConstraints(): Constraint
     {
-        return new Assert\Collection([
-            'fields' => [
+        return new Assert\Collection(
+            fields: [
                 'headline' => [new Assert\NotBlank(), new Assert\Type('string'), new Assert\Length(max: 255)],
                 'subhead' => [new Assert\NotBlank(), new Assert\Type('string'), new Assert\Length(max: 500)],
             ],
-            'allowExtraFields' => false,
-            'allowMissingFields' => false,
-        ]);
+            allowExtraFields: false,
+            allowMissingFields: false,
+        );
     }
 
     public function getDefaultData(): array
