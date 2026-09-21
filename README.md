@@ -218,14 +218,14 @@ final class HeroBlockType implements BlockTypeInterface
     // Enforced on every write; a violation reports as e.g. blocks[0].data[headline].
     public function getDataConstraints(): Constraint
     {
-        return new Assert\Collection([
-            'fields' => [
+        return new Assert\Collection(
+            fields: [
                 'headline' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
                 'subhead' => [new Assert\NotBlank(), new Assert\Length(max: 500)],
             ],
-            'allowExtraFields' => false,
-            'allowMissingFields' => false,
-        ]);
+            allowExtraFields: false,
+            allowMissingFields: false,
+        );
     }
 
     public function getDefaultData(): array

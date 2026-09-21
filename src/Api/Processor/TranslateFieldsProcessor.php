@@ -27,8 +27,8 @@ final class TranslateFieldsProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly TranslatorInterface $translator,
         private readonly TranslatableVariantRegistry $registry,
+        private readonly ?TranslatorInterface $translator = null,
     ) {
     }
 
@@ -40,6 +40,10 @@ final class TranslateFieldsProcessor implements ProcessorInterface
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): TranslateFieldsOutput
     {
         Assert::isInstanceOf($data, TranslateFieldsInput::class);
+
+        if (null === $this->translator) {
+            throw new \LogicException('Alias '.TranslatorInterface::class.' to an implementation to translate fields.');
+        }
 
         $resourceClass = $operation->getClass();
         $id = $uriVariables['id'] ?? null;

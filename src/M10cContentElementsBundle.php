@@ -16,10 +16,6 @@ class M10cContentElementsBundle extends AbstractBundle
     {
         $container->import('../config/services.yaml');
 
-        if ('test' === $container->env()) {
-            $container->import('../config/services_test.yaml');
-        }
-
         $builder->registerForAutoconfiguration(BlockTypeInterface::class)
             ->addTag('m10c.content_elements.block_type');
 
